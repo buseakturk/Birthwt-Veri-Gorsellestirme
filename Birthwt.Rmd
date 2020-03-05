@@ -1,0 +1,383 @@
+---
+title: "Birthwt"
+author: "Buse Rüşvenli"
+date: "10/11/2019"
+output: html_document
+---
+**low**:
+2,5 kg'den az dogan bebekler
+
+**age**:
+annenin yasi 
+
+**lwt**:
+Annenin son adet donemindeki agırlıgı(pound cinsinden agırlıgı)
+
+**race**:
+annenin irki ( 1= beyaz, 2= siyah, 3= diger).
+
+**smoke**:
+Hamilelikte sigara icme durumu.
+
+**ptl**:
+daha once yapilan erken dogum sayisi
+
+**ht**:
+hipertansiyon gecmisi.
+
+**ui**:
+hamilelik surecindeki kasilmalar
+
+**ftv**:
+ilk 3 aydaki doktor ziyaret sayisi
+
+**bwt**:
+gram cinsinden dogum agirligi.
+
+### Kaynak:
+Bu veri seti csv formati olarak da yuklenebilir fakat r programinin MASS kutuphanesinde de mevcuttur.
+
+Hosmer, D.W. and Lemeshow, S. (1989) Applied Logistic Regression. New York: Wiley
+
+```{r, echo =FALSE, warning = FALSE, message= FALSE}
+#install.packages("MASS")
+#install.packages("dplyr")
+#install.packages("tidyverse")
+#install.packages("gridExtra")
+#install.packages("ggplot2")
+#install.packages("scales")
+#install.packages("ggridges")
+#install.packages("funModeling")
+
+library(MASS)
+library(dplyr)
+library(tidyverse)
+library(gridExtra)
+library(ggplot2)
+library(scales)
+library(ggridges)
+library(funModeling)
+
+```
+
+
+```{r}
+head(birthwt) #verilerimizin bir kismini gorelim.
+```
+
+```{r}
+dim(birthwt)
+```
+* gozlem sayisi: 189
+* aciklayici degisken sayisi: 10
+
+
+Goruldugu gibi verimizde kayip gozlem sayisi sifirdir.Yani verimizde kayip gozlem bulunmamaktadir.
+
+
+```{r message=FALSE, warning=FALSE}
+apply(birthwt,2,function(x) sum(is.na(x)))
+birthwt$lwt<-birthwt$lwt*0.45359237
+#Race,smoke,low,ht,ui,ptl,ftv degiskenleri kategorik tanimlanabilir
+birthwt$race<-factor(birthwt$race)
+birthwt$smoke<-factor(birthwt$smoke)
+birthwt$low<-factor(birthwt$low)
+birthwt$ht<-factor(birthwt$ht)
+birthwt$ui<-factor(birthwt$ui)
+birthwt$ptl<-factor(birthwt$ptl)
+birthwt$ftv<-factor(birthwt$ftv)
+
+levels(birthwt$race)<-c("Beyaz","Siyah","Diger")
+levels(birthwt$low)<-c("normal agirlikli","düsük agirlikli")
+levels(birthwt$smoke)<-c("Icmiyor","Iciyor")
+levels(birthwt$ht)<-c("Yok","Var")
+levels(birthwt$ui)<-c("Yok","Var")
+
+birthwt=rename(birthwt, 
+               Dogum.Bicimi=low,
+               Yas=age,
+               Anne.Kilo=lwt,
+               Irk=race,
+               Sigara=smoke,
+               Erken.Dogum=ptl,
+               Hiper.Tansiyon=ht,
+               Kasilma=ui,
+               Kontrol=ftv,
+               Dogum.Agirligi=bwt)
+
+str(birthwt) #gozlem ve degiskenleri gorelim
+```
+
+
+Ilk olarak verimizi tanimak ve daha saglikli yorumlar yapabilmek adina DogumBicim,Irk ve Sigara degiskenleri icin yuzde hesabi yapan bir gorsellik olusturduk.
+```{r}
+freq(birthwt$Dogum.Bicimi)
+freq(birthwt$Irk)
+freq(birthwt$Sigara)
+```
+
+### Sekil 1
+
+```{r}
+ggplot(birthwt,aes(x=Irk,fill=Dogum.Bicimi))+
+  geom_bar(position="fill",color="black")+
+  scale_fill_brewer(palette = "Accent")+
+  coord_flip()+
+  labs(x="Irk",y="Değer", title="Irk-Dogum Bicimi Sutun Grafigi")
+```
+
+YORUM: Burada dogum biciminin irklara gore sutun grafigi verilmistir.Dusuk agirlikta bebekler oran olarak siyah irkta diger irklara gore fazla gozlemlenmistir.
+
+---
+
+### Sekil 2
+
+
+```{r}
+base.plot <- ggplot(birthwt, aes(x =Yas)) +
+  xlab("Annenin yasi") 
+base.plot + geom_histogram(aes(fill=Irk))
+```
+
+YORUM: Annenin yasina gore irklarin yogunlugunu goruyoruz.
+
+---
+
+### Sekil 3
+
+```{r}
+ggplot(birthwt,aes(Irk,fill=Dogum.Bicimi))+
+  geom_bar(position ="dodge",color="black")+
+  theme_bw()+
+  scale_fill_brewer(palette = "Set1")+
+  facet_wrap(.~Sigara)
+```
+
+YORUM :Bu grafikte, bir onceki grafikten daha detayli olarak sigara tuketiminin bebeklerin dogum kilosunu etkiledigini soylemek mumkun.Goruldugu uzere sigara kullanan annelerin bebeklerinin daha riskli olarak dogdugu icmeyen annelerle kiyaslanarak anlasiliyor.
+
+---
+
+
+
+### Sekil 4
+
+```{r message=FALSE, warning=FALSE}
+ggplot(birthwt, aes(x =Dogum.Agirligi , y = Irk, fill = Irk)) +
+  geom_density_ridges() + 
+  scale_fill_viridis_d(option = "viridis") +
+  theme_ridges() + 
+  theme(legend.position = "bottom")+
+  labs(x="Dogum Agirligi",y="Irk", title="Irklara Gore Dogum Agirligi Yogunluk Grafigi")
+```
+
+YORUM: Bu grafik bize irklara gore dogum agirliklarinin dagilimi, hangi aralikta yogunlastigi hakkinda bilgiler veriyor.Beyaz irka mensup bebekler diger iki irka gore genel bir yorum olarak daha agir dogmustur diyebiliriz."Diger" ve siyah irka mensup bebeklerde 2000 civari ve daha dusuk kilolarda dogum gozlenirken bu durum beyazlarda oldukca az olarak gozlemleniyor.
+
+
+
+---
+
+
+### Sekil 5
+
+```{r}
+ggplot(birthwt) +
+  aes(x = Irk, fill = Sigara) +
+  geom_bar(position = "dodge",color="black") +
+  scale_fill_viridis_d(option = "viridis")+
+  theme_minimal()+
+  labs(x="Irk", y="Sayı", 
+       title="Irklar ve Sigara Icin Sutun Grafigi", fill="Irk")
+```
+
+YORUM :Bu grafikte sigara icen anneleri gozlemliyoruz.Beyaz irk en fazla sigara kullanan irk olarak gozukuyor ve "diger" irka mensup kisilerin oldukca az sigara tukettigi gozlemleniyor.
+
+---
+
+
+### Sekil 6
+
+
+```{r, fig.height=5, fig.width=6, fig.align='center'}
+ggplot(birthwt, aes(x=Yas, y= Dogum.Agirligi, shape=Sigara, color=Sigara)) +   geom_point() + 
+  geom_smooth(method = "lm") + 
+  ylab("agirligi(gram)") +
+  xlab("annenin_yasi ") + 
+  ggtitle("annenin yasina göre dogum agirligi") 
+```
+
+YORUM:Annenin yasi ile sigara icip icmedigine baglı olarak bebeginin agirligi grafikte gösterilmiştir.
+
+---
+
+
+### Sekil 7
+
+```{r}
+ggplot(birthwt) +
+  aes(x = Irk, y = Dogum.Agirligi, fill = Irk) +
+  geom_boxplot() +
+  scale_fill_brewer(palette = "YlGnBu") +
+  theme_minimal()+
+  labs(x="Irk", y="Dogum.Agirligi", 
+       title="Irklar ve Dogum Agirliklari Icin Kutu Grafigi", fill="Irk")
+```
+
+YORUM: Bu grafik bize irklarin dogum agirliklari hakkinda bilgiler veren bir kutu grafigidir.Beyaz irk,dogum agirligi olarak en yuksek degerlere sahip olan irk olarak gozlemleniyor.Ayrıca siyah ve "diger" irkin degerleri birbirlerine oldukca yakin.Siyah ve "diger" irkta aykiri gozlemler bulunmaktadir.
+
+---
+
+### Sekil 8
+
+```{r}
+ggplot(birthwt) +
+  aes(x = Kasilma, y = Dogum.Agirligi, fill = Kasilma) +
+  geom_violin(adjust = 0.65, scale = "area") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_bw()
+```
+
+YORUM: Grafikte goruldugu gibi dogum surecinde yasanan kasilmalar bebegin dogum kilosunu etkileyen bir faktor olarak goze carpiyor.Kasilma yasayan annelerin bebeklerinin agirliklari genel olarak kasilma yasamayan annelerinkine gore az oldugu gozlemleniyor.
+
+---
+
+### Sekil 9
+
+```{r, echo =FALSE, warning = FALSE, message= FALSE}
+library(gridExtra)
+#zed:ziyaret edilen doktor sayisi
+g1 <- ggplot(birthwt, aes(x=Irk,fill=factor(Kontrol))) +
+  geom_bar(position="stack")
+g2 <- ggplot(birthwt, aes(x=Irk,fill=factor(Kontrol))) +
+  geom_bar(position="dodge")
+g3 <- ggplot(birthwt, aes(x=Irk,fill=factor(Kontrol))) +
+  geom_bar(position="fill")
+g4 <- ggplot(birthwt, aes(x=Irk,fill=factor(Kontrol))) +
+  geom_bar(position=position_dodge(width=0.5))
+grid.arrange(g1,g2,g3,g4, nrow=2, ncol=2)
+```
+
+YORUM:Bu grafiklerde irklara göre ilk üc ay icinde kac defa  doktora gidildigi gosterilmek istenmistir.Beyaz, siyah, diger irklarda goruldugu üzere ilk üc ay iceresinde yogunluk olarak pembe renk gorunuyor yani doktor ziyareti fazla olmamistir.
+
+---
+
+### Sekil 10
+
+```{r}
+ggplot(birthwt) +
+  aes(x = Irk, y = Dogum.Agirligi, fill = Irk) +
+  geom_violin(adjust = 0.6, scale = "area",trim=F) +
+  scale_fill_viridis_d(option = "inferno")+
+  theme_minimal() +
+  theme_linedraw()+
+  labs(x="Irk", y="Dogum.Agirligi", 
+       title="Irklar ve Dogum Agirliklari Icin Violin Grafigi", fill="Irk")
+```
+
+YORUM: Violin grafigi bizlere daha aciklayici ve belirgin bilgiler verebilir.Beyaz irki gozlemledigimizde 3000 ve 4000 gram yakinlarinda dogan bebek sayısının daha fazla oldugunu gorebiliriz.Siyah irkta
+yaklasik olarak 2500 ile 3000 civarlarinda bir kalabalik mevcut.Diger irkta ise bu yogunluk yaklasik 3000 civarinda gozlemleniyor.Buna bagli olarak ortalamalar hakkinda kestirim yapabiliriz.Dogum agirliklari ortalamasi bu saydigim degerler civarinda olacaktir.Beyazlarin ortalamasi geri kalan iki irktan da buyuk olacaktir."diger" irk ve siyahlarin ortalamasi ise birbirlerine yakin degerler olacagini soyleyebiliriz.
+
+---
+
+### Sekil 11
+
+```{r}
+ggplot(birthwt) +
+  aes(x = Yas) +
+  geom_density(adjust = 1L, fill = "orange",alpha=.5) +
+  theme_minimal()+
+  labs(x="Yas", title="Yas Icin Yogunluk Grafigi")
+```
+
+YORUM: Bu yogunluk grafigi bize dogum yapan annelerin yaslarinin dagilimi hakkinda bilgi verir.Burada 20'li yaslar civarinda bir yogunluk oldugu gozlemlenmistir.
+
+---
+
+### Sekil 12
+
+```{r}
+ggplot(birthwt) +
+  aes(x=Dogum.Agirligi) +
+  geom_density(adjust = 1L, fill = "green",alpha=0.4) +
+  theme_minimal()+
+  labs(x="Dogum agirliklari", title="Dogum Agirliklari Icin Yogunluk Grafigi")
+```
+
+YORUM: Bu grafikte gorunen dogum ortalamasi yaklasik olarak 2500-3500 gram araligindadir.Dogan bebeklerin yogun oldugu bolge tepe noktası olan 3000 civaridir.Yapilan ortalama hesabinda da sonuc 2944.587 cikarak grafigin bizlere dogru bilgi verdigini kanitlamis olduk.
+
+---
+
+### Sekil 13
+
+```{r}
+ggplot(birthwt) +
+  aes(x = Sigara, y = Dogum.Agirligi, fill = Sigara) +
+  geom_violin(trim=F,adjust=0.8) +
+  scale_fill_brewer(palette = "Dark2") +
+  theme_minimal() +
+  theme(legend.position = "bottom")+
+  labs(x="Sigara",y="Agirlik", title="Sigara-Dogum Agirligi Violin Grafigi")
+```
+
+YORUM: Bu grafikte dogan cocuklarin agirliginin, annelerinin sigara icme durumuna gore degisiklik gosterdigi soylenebilir.İcmeyenlerin agirlik ortalamasi icenlere gore daha fazla gozukuyor.İcenlerde dusuk degerlerin oldugunu grafikte gorebilir ve soyleyebiliriz.
+
+---
+
+### Sekil 14
+
+```{r}
+ggplot(birthwt, aes(x=Dogum.Agirligi, fill=Sigara)) + geom_histogram(binwidth=500,position = "identity", alpha=0.4) + geom_vline(xintercept = 2500, colour = "red", linetype = "dashed") + ylab("Frequency") + xlab("Birth Weight (grams)") +
+        labs(title = "Sigara icen ve icmeyenlere göre dogan bebeklerin dogum agirliklari", caption = "
+2500 gramin altindaki bebekler kirmizi  noktali olarak gosterilen cizgiye göre dusuk agirlikta kabul edilir.")+ guides(fill=guide_legend(title=NULL))+ annotate("text", x=1500, y=35, label= "düsük agirlikli", colour = "red")
+```
+
+
+---
+
+### Sekil 15
+
+```{r message=FALSE, warning=FALSE}
+ggplot(birthwt, aes(Dogum.Agirligi, y = ..density..)) +
+  geom_density(aes(fill = Irk), binwidth = 500)+
+  scale_fill_viridis_d(option = "viridis") +
+  labs(x="Dogum Agirligi",title="Irk-Dogum Agirligi Yogunluk Grafigi")
+```
+
+YORUM: Bir onceki grafige bagli olarak bu grafikte gozuken tepe noktalari daha saglikli yorumlar yapmamiza yardimci olur.Yani bir onceki gorselde yaptigimiz yorumlari dogrulamamiz icin yardimci oldu.
+
+---
+
+### Sekil 16
+
+```{r message=FALSE, warning=FALSE}
+#install.packages("miscset")
+library(miscset)
+x=list(
+  ggplot(birthwt) +
+    aes(x = Irk, y = Dogum.Agirligi, fill = Irk) +
+    geom_boxplot() +
+    scale_fill_brewer(palette = "YlOrRd") +
+    theme_minimal()+
+    theme(legend.position ="bottom") ,
+  ggplot(birthwt) +
+    aes(x = Irk, y = Dogum.Agirligi, fill = Irk) +
+    geom_violin(adjust = 1L, scale = "area",trim=F) +
+    scale_fill_brewer(palette = "YlOrRd") +
+    theme_minimal()+
+    theme(legend.position ="bottom")+
+    geom_jitter(color="black",alpha=0.6)
+  )
+
+ggplotGrid(x,ncol=2)
+```
+
+Iki grafikte irklara gore dogum agirliklari verilmistir.Beyaz irkta daha yuksek degerler gozleniyor.En buyuk ve en kucuk gozlemler yani en buyuk aralik beyaz irka aittir.Aralik olarak en kisitli olan irk ise siyah olarak gozukuyor.Her uc irkta aykiri gozlemler violin grafigi sayesinde daha net gozlemleniyor.Siyah ve "Diger" irk ortalamalari yaklasik olarak ayni iken beyaz irk ortalamasi daha buyuktur diyebiliriz.Geom_jitter yardimi ile her bir irkta dogan bebeklerin hangi degerlerde yogun oldugu baska bir deyisle hangi degerlerde toplandigini goruyoruz.Violin grafigi bize boxplot grafigine gore daha anlamli ve daha yapici bilgiler sunuyor.
+
+---
+
+
+
+
+
+
+
+
